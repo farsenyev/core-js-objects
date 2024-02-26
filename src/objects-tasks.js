@@ -219,7 +219,7 @@ function sellTickets(queue) {
 function Rectangle(width, height) {
   this.width = width;
   this.height = height;
-  this.getArea = function () {
+  this.getArea = () => {
     return this.width * this.height;
   };
 }
@@ -396,87 +396,87 @@ class Builder {
     this.attributes = [];
     this.pseudoClasses = [];
     this.pseudoElements = [];
-    this.combinators = [];
-    this.partOrderMap = {
+    this.partsCount = {
       element: 0,
-      id: 1,
-      class: 2,
-      attribute: 3,
-      'pseudo-class': 4,
-      'pseudo-element': 5,
+      id: 0,
+      pseudoElement: 0,
     };
-    this.lastPartOrder = -1;
+    this.combinator = '';
   }
 
   element(value) {
-    this.checkOrder('element');
     this.elements.push(value);
-    this.lastPartOrder = this.partOrderMap.element;
+    this.partsCount.element += 1;
     return this;
   }
 
   id(value) {
-    this.checkOrder('id');
     this.ids.push(`#${value}`);
-    this.lastPartOrder = this.partOrderMap.id;
+    this.partsCount.id += 1;
     return this;
   }
 
   class(value) {
-    this.checkOrder('class');
     this.classes.push(`.${value}`);
-    this.lastPartOrder = this.partOrderMap.class;
     return this;
   }
 
   attr(value) {
-    this.checkOrder('attribute');
     this.attributes.push(`[${value}]`);
-    this.lastPartOrder = this.partOrderMap.attribute;
     return this;
   }
 
   pseudoClass(value) {
-    this.checkOrder('pseudo-class');
     this.pseudoClasses.push(`:${value}`);
-    this.lastPartOrder = this.partOrderMap['pseudo-class'];
     return this;
   }
 
   pseudoElement(value) {
-    this.checkOrder('pseudo-element');
     this.pseudoElements.push(`::${value}`);
-    this.lastPartOrder = this.partOrderMap['pseudo-element'];
+    this.partsCount.pseudoElement += 1;
     return this;
   }
 
-  checkOrder(part) {
-    if (this.lastPartOrder > this.partOrderMap[part]) {
-      throw new Error(
-        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
-      );
-    }
-  }
-
-  combine(selector, combinator) {
-    this.combinators.push(combinator);
-    this.combinators.push(selector);
-    return this;
+  combine(selector1, combinator, selector2) {
+    const combinedSelector = selector1.combine(selector2, combinator);
+    const partsCount = {
+      element: 0,
+      id: 0,
+      pseudoElement: 0,
+    };
+    ['elements', 'ids', 'pseudoElements'].forEach((part) => {
+      combinedSelector[part].forEach((partValue) => {
+        if (partValue.startsWith('#')) {
+          partsCount.id += 1;
+        } else if (partValue.startsWith('::')) {
+          partsCount.pseudoElement += 1;
+        } else {
+          partsCount.element += 1;
+        }
+        if (
+          partsCount.id > 1 ||
+          partsCount.pseudoElement > 1 ||
+          partsCount.element > 1
+        ) {
+          throw new Error(
+            'Element, id and pseudo-element should not occur more than one time inside the selector'
+          );
+        }
+      });
+    });
+    return combinedSelector;
   }
 
   stringify() {
-    let res = [
+    const parts = [
       ...this.elements,
       ...this.ids,
       ...this.classes,
       ...this.attributes,
       ...this.pseudoClasses,
       ...this.pseudoElements,
-    ].join('');
-    for (let i = 0; i < this.combinators.length; i += 2) {
-      res += ` ${this.combinators[i]} ${this.combinators[i + 1].stringify()}`;
-    }
-    return res;
+    ];
+    return parts.join('') + (this.combinator ? ` ${this.combinator} ` : '');
   }
 }
 
