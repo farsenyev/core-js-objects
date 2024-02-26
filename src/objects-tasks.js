@@ -396,23 +396,16 @@ class Builder {
     this.attributes = [];
     this.pseudoClasses = [];
     this.pseudoElements = [];
-    this.partsCount = {
-      element: 0,
-      id: 0,
-      pseudoElement: 0,
-    };
     this.combinator = '';
   }
 
   element(value) {
     this.elements.push(value);
-    this.partsCount.element += 1;
     return this;
   }
 
   id(value) {
     this.ids.push(`#${value}`);
-    this.partsCount.id += 1;
     return this;
   }
 
@@ -433,50 +426,20 @@ class Builder {
 
   pseudoElement(value) {
     this.pseudoElements.push(`::${value}`);
-    this.partsCount.pseudoElement += 1;
     return this;
   }
 
   combine(selector1, combinator, selector2) {
-    const combinedSelector = selector1.combine(selector2, combinator);
-    const partsCount = {
-      element: 0,
-      id: 0,
-      pseudoElement: 0,
-    };
-    ['elements', 'ids', 'pseudoElements'].forEach((part) => {
-      combinedSelector[part].forEach((partValue) => {
-        if (partValue.startsWith('#')) {
-          partsCount.id += 1;
-        } else if (partValue.startsWith('::')) {
-          partsCount.pseudoElement += 1;
-        } else {
-          partsCount.element += 1;
-        }
-        if (
-          partsCount.id > 1 ||
-          partsCount.pseudoElement > 1 ||
-          partsCount.element > 1
-        ) {
-          throw new Error(
-            'Element, id and pseudo-element should not occur more than one time inside the selector'
-          );
-        }
-      });
-    });
-    return combinedSelector;
+    this.combinator = `${selector1.stringify()} ${combinator} ${selector2.stringify()}`;
+    return this;
   }
 
   stringify() {
-    const parts = [
-      ...this.elements,
-      ...this.ids,
-      ...this.classes,
-      ...this.attributes,
-      ...this.pseudoClasses,
-      ...this.pseudoElements,
-    ];
-    return parts.join('') + (this.combinator ? ` ${this.combinator} ` : '');
+    return `${this.elements.join('')}${this.ids.join('')}${this.classes.join(
+      ''
+    )}${this.attributes.join('')}${this.pseudoClasses.join(
+      ''
+    )}${this.pseudoElements.join('')}${this.combinator}`;
   }
 }
 
